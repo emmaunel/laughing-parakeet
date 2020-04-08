@@ -1,5 +1,15 @@
 #!/bin/bash
 
+#Arguments: IP address of NIC
+function startProcesses {
+	./APMs/APM1 $1
+	./APMs/APM2 $1
+	./APMs/APM3 $1
+	./APMs/APM4 $1
+	./APMs/APM5 $1
+	./APMs/APM6 $1
+}
+
 #Arguments: process name, seconds, %cpu, %memory
 function logProcess {
 	outfile="${1}_metrics.csv"
