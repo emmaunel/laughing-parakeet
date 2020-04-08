@@ -10,6 +10,15 @@ function startProcesses {
 	./APMs/APM6 $1 &
 }
 
+function cleanup {
+	pkill APM1
+	pkill APM2
+	pkill APM3
+	pkill APM4
+	pkill APM5
+	pkill APM6
+}
+
 #Arguments: process name, seconds, %cpu, %memory
 function logProcess {
 	outfile="${1}_metrics.csv"
