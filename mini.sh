@@ -8,17 +8,19 @@ function startProcesses {
 	./APMs/APM4 $1 &
 	./APMs/APM5 $1 &
 	./APMs/APM6 $1 &
+
+	ifstat -d 1
 }
 
 function processlevel {
 	# ps -p <pid> -o %cpu,%mem,cmd
-	sleep 5
-	P1=$(pidof APM1)
-	P2=$(pidof APM2)
-	P3=$(pidof APM3)
-	P4=$(pidof APM4)
-	P5=$(pidof APM5)
-	P6=$(pidof APM6)
+	#sleep 5
+	local P1=$(pidof APM1)
+	local P2=$(pidof APM2)
+	local P3=$(pidof APM3)
+	local P4=$(pidof APM4)
+	local P5=$(pidof APM5)
+	local P6=$(pidof APM6)
 
 	ps -p $P1 -o %cpu,%mem,cmd
 	ps -p $P2 -o %cpu,%mem,cmd
@@ -35,6 +37,17 @@ function cleanup {
 	pkill APM4
 	pkill APM5
 	pkill APM6
+
+	pkill ifstat
+}
+
+function system() {
+	local DISKW=$(iostat -ky 5 1 | grep sda | awk '{print $4}')
+	local IFOUT=$(ifstat ens192 | grep ens192)
+	local RX=$(printf "$IFOUT" | awk '{print $6}')
+	local TX=$(printf "$IFOUT" | awk '{print $8}')
+	local DISKUSE=$(df / -B MB | grep /dev/mapper/centos-root | awk '{print $3}')
+	logSystem 5 "$RX" "$TX" "$DISKW" "$DISKUSE"
 }
 
 #Arguments: process name, seconds, %cpu, %memory
@@ -50,6 +63,7 @@ function logSystem {
 }
 
 startProcesses 127.0.0.1
+system
 processlevel
 sleep 5
 cleanup
