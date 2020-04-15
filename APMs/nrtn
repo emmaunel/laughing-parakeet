@@ -1,0 +1,119 @@
+#!/bin/bash
+
+time=0
+
+# Define VM network adapter
+interface=eth0
+
+# Get initial Rx/Tx values
+read rx < "/sys/class/net/$interface/statistics/rx_bytes"
+read tx < "/sys/class/net/$interface/statistics/tx_bytes"
+
+# Spawn each APM
+StartSpawning(){
+	./APM1 $1 2>/dev/null & pid1=$!; echo "APM1 PID: $pid1"
+	./APM2 $1 2>/dev/null & pid2=$!; echo "APM2 PID: $pid2"
+	./APM3 $1 2>/dev/null & pid3=$!; echo "APM3 PID: $pid3"
+	./APM4 $1 2>/dev/null & pid4=$!; echo "APM4 PID: $pid4"
+	./APM5 $1 2>/dev/null & pid5=$!; echo "APM5 PID: $pid5"
+	./APM6 $1 2>/dev/null & pid6=$!; echo "APM6 PID: $pid6"
+}
+
+# Kill processes on exit
+cleanup(){
+	echo "Cleaning up..."
+    for pid in $pid1 $pid2 $pid3 $pid4 $pid5 $pid6; do echo kill $pid; done
+}
+
+# Monitor process metrics
+MonitorProcess(){
+	if [[ $(($time % 5)) == 0 ]]
+	then
+		echo -e "      %CPU %MEM"
+		# Get process CPU and Memory usage
+		# Print then redirect to file
+		p1CPU=$(ps -p $pid1 -o %cpu | tail -n +2)
+		p1Memory=$(ps -p $pid1 -o %mem | tail -n +2)
+		echo "APM1: $p1CPU $p1Memory"
+		echo "$time, $p1CPU, $p1Memory" >> APM1_metrics.csv
+
+		p2CPU=$(ps -p $pid2 -o %cpu | tail -n +2)
+		p2Memory=$(ps -p $pid2 -o %mem | tail -n +2)
+		echo "APM2: $p2CPU $p2Memory"
+		echo "$time, $p2CPU, $p2Memory" >> APM2_metrics.csv
+
+		p3CPU=$(ps -p $pid3 -o %cpu | tail -n +2)
+		p3Memory=$(ps -p $pid3 -o %mem | tail -n +2)
+		echo "APM3: $p3CPU $p3Memory"
+		echo "$time, $p3CPU, $p3Memory" >> APM3_metrics.csv
+
+		p4CPU=$(ps -p $pid4 -o %cpu | tail -n +2)
+		p4Memory=$(ps -p $pid4 -o %mem | tail -n +2)
+		echo "APM4: $p4CPU $p4Memory"
+		echo "$time, $p4CPU, $p4Memory" >> APM4_metrics.csv
+
+		p5CPU=$(ps -p $pid5 -o %cpu | tail -n +2)
+		p5Memory=$(ps -p $pid5 -o %mem | tail -n +2)
+		echo "APM5: $p5CPU $p5Memory"
+		echo "$time, $p5CPU, $p5Memory" >> APM5_metrics.csv
+
+		p6CPU=$(ps -p $pid6 -o %cpu | tail -n +2)
+		p6Memory=$(ps -p $pid6 -o %mem | tail -n +2)
+		echo "APM6: $p6CPU $p6Memory"
+		echo "$time, $p6CPU, $p6Memory" >> APM6_metrics.csv
+	fi
+}
+
+# Monitor system metrics
+MonitorSystem(){
+	# Network Utilization
+	read rx_update < "/sys/class/net/$interface/statistics/rx_bytes"
+	read tx_update < "/sys/class/net/$interface/statistics/tx_bytes"
+
+	rx_kb=$(((rx_update - rx) / 125))
+	tx_kb=$(((tx_update - tx) / 125))
+
+	rx=$rx_update
+	tx=$tx_update
+
+	# Disk Access Rate
+	kb_read=$(iostat sda | tail -n 2 | awk '{ print $3 }')
+	kb_write=$(iostat sda | tail -n 2 | awk '{ print $4 }')
+
+	# Disk Utilization
+	disk_used=$(df -m | sed -n '2p' | awk '{ print $3 }')
+	disk_free=$(df -m | sed -n '2p' | awk '{ print $4 }')
+
+	if [[ $(($time % 5)) == 0 ]]
+	then
+		# Print & Redirect to file
+		echo Network Utilization\: Rx $rx_kb kbit\/s \| Tx $tx_kb kbit\/s
+		echo Disk Access Rate\: Read $kb_read KB\/s \| Write $kb_write KB\/s
+		echo Disk Utilization\: Used $disk_used MB \| Free $disk_free MB
+		echo ""
+		echo "$time, $rx_kb, $tx_kb, $kb_write, $disk_free" >> system_metrics.csv
+	fi
+}
+
+ip=$(ip route get 1 | awk '{ print $3 }' | xargs)
+echo "IP: $ip"
+
+StartSpawning "$ip"
+
+# Loop for 15 minutes
+while [ $time -lt 900 ]
+do
+    # Run MonitorProcess function
+	MonitorProcess
+	# Run MonitorSystem function
+	MonitorSystem
+	# Wait for 1 sec
+	sleep 1
+	# Reevaluate
+	time=$((time + 1))
+done
+
+# Kill all the executed processes
+trap cleanup EXIT
+
+
