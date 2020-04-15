@@ -1,4 +1,4 @@
-time,%CPU,%MEM
+time,%CPU,%MEM,%cmd,%ip
 5 ,0.0,0.0,./APMs/APM1,127.0.0.1
 16 ,0.0,0.0,./APMs/APM1,127.0.0.1
 27 ,0.0,0.0,./APMs/APM1,127.0.0.1
